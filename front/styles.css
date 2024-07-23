@@ -1,0 +1,38 @@
+ body {
+            font-family: Arial, sans-serif;
+            background-color: #cad6c3;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #f7f7f8;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        button {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .create-diaries {
+            background-color: #51b158;
+            color: white;
+        }
+        .export-stories {
+            background-color: #3897ea;
+            color: white;
+        }
+        .export-maps {
+            background-color: #e45149;
+            color: white;
+        }

@@ -1,10 +1,51 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Выгрузка</title>
+    <link rel="stylesheet" href="styles.css">
+    <script>
+    async function sendRequest(url) {
+        try {
+            let response = await fetch(url, {
+                method: 'GET'
+            });
+            if (response.ok) {
+                let data = await response.json();
+                console.log(data);
+                alert("Запрос успешно выполнен!");
+            } else {
+                alert("Ошибка1: " + response.status);
+            }
+        } catch (error) {
+            alert("Ошибка2: " + error.message);
+        }
+    }
+
+    function setupEventHandlers() {
+        document.querySelector('.create-diaries').addEventListener('click', () => {
+            sendRequest('http://127.0.0.1:8000/create-diaries');
+        });
+
+        document.querySelector('.export-stories').addEventListener('click', () => {
+            sendRequest('http://127.0.0.1:8000/export-stories');
+        });
+
+        document.querySelector('.export-maps').addEventListener('click', () => {
+            sendRequest('http://127.0.0.1:8000/export-maps');
+        });
+    }
+
+    window.onload = setupEventHandlers;
+    </script>
 </head>
 <body>
-
+    <div class="container">
+        <h1>Выгрузка </h1>
+        <button class="create-diaries">Создать дневники</button>
+        <button class="export-stories">Выгрузить истории</button>
+        <button class="export-maps">Выгрузить карты травмпункта</button>
+    </div>
 </body>
 </html>

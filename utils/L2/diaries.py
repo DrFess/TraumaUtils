@@ -10,7 +10,7 @@ from utils.settings import GOOGLE_TABLE_KEY
 
 def get_patients_from_table(interval: str) -> list:
     """Получение списка номеров выписанных историй из сводной гугл-таблице"""
-    gs = gspread.service_account(filename='access.json')
+    gs = gspread.service_account(filename='utils/jsonS/access.json')
     sh = gs.open_by_key(GOOGLE_TABLE_KEY)
 
     worksheet = sh.get_worksheet_by_id(0)
