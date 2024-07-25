@@ -22,7 +22,7 @@ def read_xlsx(path: str) -> list:
 
 def search_diag_id(diag_mkb: str) -> str:
     """Получение id диагноза по коду МКБ"""
-    with open('jsonS/diag_id.json', 'r') as file:
+    with open('utils/jsonS/diag_id.json', 'r') as file:
         diag_ids = json.load(file)
 
     for item in diag_ids:

@@ -226,7 +226,7 @@ def extract_patient_data_from_L2(history_number: int) -> dict:
                             discharge_summary[key] = value
                         elif item.get('pk') == 18733 and value != '- Не выбрано':
                             discharge_summary[key] = value
-                            with open('jsonS/hospitals.json', 'r') as file:
+                            with open('utils/jsonS/hospitals.json', 'r') as file:
                                 hospitals = json.load(file)
                                 hospital = hospitals.get(value)
                                 discharge_summary['Org_id'] = hospital.get('Org_id')

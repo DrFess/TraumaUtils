@@ -144,7 +144,7 @@ def export_stories_function():
                         surgType_id='1'
                     )
                     anesthesiolog = data.get('Протоколы операций')[0].get('Анестезиолог')
-                    with open('jsonS/empoyees.json', 'r') as file:
+                    with open('utils/jsonS/empoyees.json', 'r') as file:
                         doctors_list = json.load(file)
                     for doctor in doctors_list:
                         if anesthesiolog == doctor.get('MedPersonal_Fin') and doctor.get(
