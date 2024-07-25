@@ -23,7 +23,7 @@ from .single_digital_platform import (
 
 
 def export_stories_function():
-    with open('jsonS/doctors.json', 'r') as file:  # список словарей с данными врачей
+    with open('utils/jsonS/doctors.json', 'r') as file:  # список словарей с данными врачей
         doctors = json.load(file)
 
     session = requests.Session()  # создание сессии подключения
