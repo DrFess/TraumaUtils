@@ -6,74 +6,74 @@
     <title>Выгрузка</title>
     <link rel="stylesheet" href="styles.css">
     <script>
-    async function sendRequest(url) {
-        try {
-            let response = await fetch(url, {
-                method: 'GET'
-            });
-            if (response.ok) {
-                let data = await response.json();
-                console.log(data);
-                alert("Запрос успешно выполнен!");
-            } else {
-                alert("Ошибка1: " + response.status);
+        async function sendRequest(url) {
+            try {
+                let response = await fetch(url, {
+                    method: 'GET'
+                });
+                if (response.ok) {
+                    let data = await response.json();
+                    console.log(data);
+                    alert("Запрос успешно выполнен!");
+                } else {
+                    alert("Ошибка1: " + response.status);
+                }
+            } catch (error) {
+                alert("Ошибка2: " + error.message);
             }
-        } catch (error) {
-            alert("Ошибка2: " + error.message);
         }
-    }
 
-    function setupEventHandlers() {
-        document.querySelector('.create-diaries').addEventListener('click', () => {
-            sendRequest('http://127.0.0.1:8000/create-diaries');
-        });
+        function setupEventHandlers() {
+            document.querySelector('.create-diaries').addEventListener('click', () => {
+                sendRequest('http://127.0.0.1:8000/create-diaries');
+            });
 
-        document.querySelector('.export-stories').addEventListener('click', () => {
-            sendRequest('http://127.0.0.1:8000/export-stories');
-        });
+            document.querySelector('.export-stories').addEventListener('click', () => {
+                sendRequest('http://127.0.0.1:8000/export-stories');
+            });
 
-        document.querySelector('.export-maps').addEventListener('click', () => {
-            sendRequest('http://127.0.0.1:8000/export-maps');
-        });
+            document.querySelector('.export-maps').addEventListener('click', () => {
+                sendRequest('http://127.0.0.1:8000/export-maps');
+            });
 
-        document.querySelector('.create-diaries').addEventListener('mousedown', (e) => {
-            e.target.classList.add('active');
-        });
+            document.querySelector('.create-diaries').addEventListener('mousedown', (e) => {
+                e.target.classList.add('active');
+            });
 
-        document.querySelector('.export-stories').addEventListener('mousedown', (e) => {
-            e.target.classList.add('active');
-        });
+            document.querySelector('.export-stories').addEventListener('mousedown', (e) => {
+                e.target.classList.add('active');
+            });
 
-        document.querySelector('.export-maps').addEventListener('mousedown', (e) => {
-            e.target.classList.add('active');
-        });
+            document.querySelector('.export-maps').addEventListener('mousedown', (e) => {
+                e.target.classList.add('active');
+            });
 
-        document.querySelector('.create-diaries').addEventListener('mouseup', (e) => {
-            e.target.classList.remove('active');
-        });
+            document.querySelector('.create-diaries').addEventListener('mouseup', (e) => {
+                e.target.classList.remove('active');
+            });
 
-        document.querySelector('.export-stories').addEventListener('mouseup', (e) => {
-            e.target.classList.remove('active');
-        });
+            document.querySelector('.export-stories').addEventListener('mouseup', (e) => {
+                e.target.classList.remove('active');
+            });
 
-        document.querySelector('.export-maps').addEventListener('mouseup', (e) => {
-            e.target.classList.remove('active');
-        });
+            document.querySelector('.export-maps').addEventListener('mouseup', (e) => {
+                e.target.classList.remove('active');
+            });
 
-        document.querySelector('.create-diaries').addEventListener('mouseleave', (e) => {
-            e.target.classList.remove('active');
-        });
+            document.querySelector('.create-diaries').addEventListener('mouseleave', (e) => {
+                e.target.classList.remove('active');
+            });
 
-        document.querySelector('.export-stories').addEventListener('mouseleave', (e) => {
-            e.target.classList.remove('active');
-        });
+            document.querySelector('.export-stories').addEventListener('mouseleave', (e) => {
+                e.target.classList.remove('active');
+            });
 
-        document.querySelector('.export-maps').addEventListener('mouseleave', (e) => {
-            e.target.classList.remove('active');
-        });
-    }
+            document.querySelector('.export-maps').addEventListener('mouseleave', (e) => {
+                e.target.classList.remove('active');
+            });
+        }
 
-    window.onload = setupEventHandlers;
+        window.onload = setupEventHandlers;
     </script>
 </head>
 <body>
