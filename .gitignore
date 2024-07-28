@@ -240,3 +240,4 @@ cython_debug/
 #.idea/
 
 settings.py
+jsonS/
