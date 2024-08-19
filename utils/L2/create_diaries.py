@@ -11,12 +11,12 @@ from utils.settings import login_l2, password_l2
 
 def create_diaries_function():
     current_year = datetime.now().year
-    holidays_days = holidays.country_holidays('RU', years=current_year)
+    holidays.country_holidays('RU', years=current_year)
     holidays_and_weekend = get_weekend_and_holidays(current_year)
 
     session = requests.Session()
 
-    authorization = authorization_l2(session, login=login_l2, password=password_l2)
+    authorization_l2(session, login=login_l2, password=password_l2)
 
     patients = get_patients_from_table('C3:C42')
     patients_out_of_stock = get_patients_from_table('K3:K42')
@@ -37,7 +37,7 @@ def create_diaries_function():
             pk_2 = data_2.get('data')[0].get('pk')
             local_status = data_by_fields(session, pk_2).get('data').get('1922')
             if date_list[0] in holidays_and_weekend_in_month:
-                result = save_results(
+                save_results(
                     connect=session,
                     pk=pk,
                     pk_2=pk_1,
@@ -46,7 +46,7 @@ def create_diaries_function():
                     what_inspection='дежурным травматологом-ортопедом'
                 )
             elif weekday_number in (1, 5) and date_list[0] not in holidays_and_weekend_in_month:
-                result = save_results(
+                save_results(
                     connect=session,
                     pk=pk,
                     pk_2=pk_1,
@@ -55,7 +55,7 @@ def create_diaries_function():
                     what_inspection='лечащим врачом совместно с заведующим отделением'
                 )
             else:
-                result = save_results(
+                save_results(
                     connect=session,
                     pk=pk,
                     pk_2=pk_1,

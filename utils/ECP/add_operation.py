@@ -606,7 +606,7 @@ def save_all_oper_info(connect,
         'UslugaExecutionReason_id': '',
         'UslugaPlace_id': '1',
         'LpuSection_uid': '380101000015688',  # id отделения (травматология)
-        'LpuSectionProfile_id': '380101000000301',
+        'LpuSectionProfile_id': '380101000000332',
         'MedSpecOms_id': '',
         'MedStaffFact_id': medStaffFact_id,
         'MedStaffFact_sid': '',
