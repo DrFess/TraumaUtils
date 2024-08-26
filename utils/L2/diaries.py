@@ -46,7 +46,7 @@ def authorization_l2(connect, login, password):
     return response.status_code, response.json()
 
 
-def add_diaries(connect, history_number):
+def add_diaries(connect, history_number: int, service_id: int):
     """Создаёт новый дневник"""
     headers = {
         'Accept': 'application/json, text/plain, */*',
@@ -60,7 +60,7 @@ def add_diaries(connect, history_number):
     }
 
     json_data = {
-        'service': 2,
+        'service': service_id,  # 2 - дневник, 5 - протокол операции, 20 - диагностический эпикриз
         'main_direction': history_number,
     }
 
@@ -3000,3 +3000,107 @@ def get_first_research(connect, pk: int):
         verify=False,
     )
     return response.json().get('researches')[0].get('research').get('groups')
+
+
+def get_patient_pk(connect, history_number: str):
+    """Возвращает pk пациента"""
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Content-Type': 'application/json',
+        'DNT': '1',
+        'Origin': 'http://192.168.10.161',
+        'Proxy-Connection': 'keep-alive',
+        'Referer': 'http://192.168.10.161/ui/stationar',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    }
+
+    json_data = {
+        'pk': history_number,
+        'every': False,
+    }
+
+    response = connect.post('http://192.168.10.161/api/stationar/load', headers=headers, json=json_data, verify=False)
+    return response.json().get('data').get('patient').get('card_pk')
+
+
+def is_surgery_planned(connect, patient_number: int):
+    """Проверяет, есть ли запланированная операция"""
+
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Content-Type': 'application/json',
+        'DNT': '1',
+        'Origin': 'http://192.168.10.161',
+        'Proxy-Connection': 'keep-alive',
+        'Referer': 'http://192.168.10.161/ui/stationar',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    }
+
+    json_data = {
+        'card_pk': patient_number,  # pk карточки пациента, не номер истории или номер протокола истории
+    }
+
+    response = connect.post(
+        'http://192.168.10.161/api/plans/get-plan-operations-by-patient',
+        headers=headers,
+        json=json_data,
+        verify=False,
+    )
+    return response.json()  # возвращает словарь с ключом data, если нет операции - {'data': []}, иначе .get('data')[0]
+
+
+def get_all_records(connect, history_number: int):
+    """Получает все записи по номеру истории"""
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Content-Type': 'application/json',
+        'DNT': '1',
+        'Origin': 'http://192.168.10.161',
+        'Proxy-Connection': 'keep-alive',
+        'Referer': 'http://192.168.10.161/ui/stationar',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    }
+
+    json_data = {
+        'direction': history_number,
+        'r_type': 'all',
+        'every': False,
+    }
+
+    response = connect.post(
+        'http://192.168.10.161/api/stationar/directions-by-key',
+        headers=headers,
+        json=json_data,
+        verify=False,
+    )
+    return response.json()
+
+
+def get_record_details(connect, record_number: int):
+
+    headers = {
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Content-Type': 'application/json',
+        'DNT': '1',
+        'Origin': 'http://192.168.10.161',
+        'Proxy-Connection': 'keep-alive',
+        'Referer': 'http://192.168.10.161/ui/stationar',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36',
+    }
+
+    json_data = {
+        'pk': record_number,
+        'force': True,
+    }
+
+    response = connect.post(
+        'http://192.168.10.161/api/directions/paraclinic_form',
+        headers=headers,
+        json=json_data,
+        verify=False,
+    ).json()
+    return response.get('researches')[0].get('research').get('groups')[0].get('fields')[0].get('value')
