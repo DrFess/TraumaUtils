@@ -67,8 +67,8 @@ def create_diaries_function():
             time.sleep(2)
 
             """Добавляет протокол операции если стоит в плане операции"""
-            patient_pk = get_patient_pk(session, '2872958')
-            if is_surgery_planned(session, patient_pk).get('data'):
+            patient_pk = get_patient_pk(session, str(history_number))
+            if is_surgery_planned(session, patient_pk).get('data')[0].get('date') == datetime.today().strftime('%d.%m.%Y'):
                 add_diaries(session, history_number=int(history_number), service_id=5)
 
             """Добавляет диагностический эпикриз если его нет"""
