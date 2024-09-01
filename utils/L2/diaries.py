@@ -13,7 +13,7 @@ def get_patients_from_table(interval: str) -> list:
     gs = gspread.service_account(filename='utils/jsonS/access.json')
     sh = gs.open_by_key(GOOGLE_TABLE_KEY)
 
-    worksheet = sh.get_worksheet_by_id(0)
+    worksheet = sh.get_worksheet_by_id(2071709469)
 
     result = []
     for item in worksheet.get(interval):
