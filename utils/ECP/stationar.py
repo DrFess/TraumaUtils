@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+from pprint import pprint
+
 import requests
 
 from .add_operation import get_info_code_operation, save_all_oper_info, add_operation_member, save_oper_anesthesia, \
@@ -20,6 +22,7 @@ from .single_digital_platform import (
     update_research_evn_template,
     save_implant_type_link
 )
+from ..L2.L2_expertise import History
 
 
 def export_stories_function():
@@ -30,9 +33,11 @@ def export_stories_function():
     session.proxies.update(proxies)
 
     for item in get_patients_from_table('P3:P42'):  # функция получает список номеров выписанных историй (P3:P42)
+
         try:
             data = extract_patient_data_from_L2(int(item))  # данные из истории в виде словаря
-            doctor_surname = data.get('Лечащий врач')
+            # pprint(data)
+            doctor_surname = data.get('Лечащий врач').split(' ')[0]
 
             login = doctors.get(doctor_surname).get('login')  # получаем логин по фамилии лечащего врача из data
             password = doctors.get(doctor_surname).get('password')  # получаем пароль по фамилии лечащего врача из data
@@ -48,10 +53,8 @@ def export_stories_function():
                 patronymic=data.get('Отчество'),
                 birthday=data.get('Дата рождения'),
             )
-            patient = search.get('data')[0]['Person_id']  # person_id пациента после поиска его в ЕЦП
-
+            patient = search[0].get('Person_id')  # person_id пациента после поиска его в ЕЦП
             diagnosis_id = mkb(session, letter=data.get('Основной диагноз по МКБ'))[0]['Diag_id']  # id диагноза по коду МКБ
-
             ksg_and_koef = get_KSG_KOEF(  # расчёт КСГ по сроку лечения и коду МКБ -> нужно добавить метод для расчёта по операции
                 session,
                 date_start=data.get('Дата поступления'),
@@ -59,15 +62,14 @@ def export_stories_function():
                 patient_id=patient,
                 diagnosis_id=diagnosis_id
             )
-
             evn_number = get_evn_number(session)  # получаем номер случая лечения
             try:
                 if data.get('Вид госпитализации') == 'экстренная':  # сохранение карты выбывшего == госпитализация/оформлен
                     evn_card = save_EVN(
                         session,
                         patient_id=patient,
-                        patient_person_evn_id=search.get('data')[0]['PersonEvn_id'],
-                        patient_server_id=search.get('data')[0]['Server_id'],
+                        patient_person_evn_id=search[0]['PersonEvn_id'],
+                        patient_server_id=search[0]['Server_id'],
                         date_start=data.get('Дата поступления'),
                         time_start=data.get('Время поступления'),
                         numcard=evn_number.get('EvnPS_NumCard'),
@@ -83,8 +85,8 @@ def export_stories_function():
                     evn_card = save_EVN(
                         session,
                         patient_id=patient,
-                        patient_person_evn_id=search.get('data')[0]['PersonEvn_id'],
-                        patient_server_id=search.get('data')[0]['Server_id'],
+                        patient_person_evn_id=search[0]['PersonEvn_id'],
+                        patient_server_id=search[0]['Server_id'],
                         date_start=data.get('Дата поступления'),
                         time_start=data.get('Время поступления'),
                         numcard=evn_number.get('EvnPS_NumCard'),
@@ -120,8 +122,8 @@ def export_stories_function():
                         session,
                         medPersonal_id=med_personal_id,
                         person_id=patient,
-                        personEvn_id=search.get('data')[0].get('PersonEvn_id'),
-                        server_id=search.get('data')[0].get('Server_id'),
+                        personEvn_id=search[0].get('PersonEvn_id'),
+                        server_id=search[0].get('Server_id'),
                         start_date=data.get('Протоколы операций')[0].get('Дата проведения'),
                         start_time=data.get('Протоколы операций')[0].get('Время начала'),
                         end_date=data.get('Протоколы операций')[0].get('Дата проведения'),
@@ -214,9 +216,9 @@ def export_stories_function():
                     ksg_mestarif_id=ksg_and_koef['MesTariff_id'],
                     ksg_mes_old_usluga_complex_id=ksg_and_koef['MesOldUslugaComplex_id'],
                     ksg_coeff=ksg_and_koef['KOEF'],
-                    patient_id=search['data'][0]['Person_id'],
-                    patient_person_evn_id=search['data'][0]['PersonEvn_id'],
-                    patient_server_id=search['data'][0]['Server_id'],
+                    patient_id=search[0]['Person_id'],
+                    patient_person_evn_id=search[0]['PersonEvn_id'],
+                    patient_server_id=search[0]['Server_id'],
                     time_start=data.get('Время поступления'),
                     time_end=data.get('Время выписки'),
                     evn_section_id=evn_card['EvnSection_id'],

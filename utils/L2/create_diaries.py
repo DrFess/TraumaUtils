@@ -22,8 +22,15 @@ def create_diaries_function():
     patients = get_patients_from_table('C3:C42')
     patients_out_of_stock = get_patients_from_table('K3:K42')
     patients.extend(patients_out_of_stock)
+
     for history_number in patients:
         try:
+            # patient_pk = get_patient_pk(session, str(history_number))
+            # print(patient_pk)
+            # if is_surgery_planned(session, patient_pk).get('data')[0].get('date') == datetime.today().strftime('%d.%m.%Y'):
+            #     add_diaries(session, history_number=int(history_number), service_id=479)
+            #     add_diaries(session, history_number=int(history_number), service_id=5)
+            # else:
             data = add_diaries(session, int(history_number), service_id=2)
             pk = data.get('pk')
             data_1 = get_pk(session, pk)
@@ -66,32 +73,32 @@ def create_diaries_function():
                 )
             time.sleep(2)
 
-            """Добавляет протокол операции если стоит в плане операции"""
-            patient_pk = get_patient_pk(session, str(history_number))
-            if is_surgery_planned(session, patient_pk).get('data')[0].get('date') == datetime.today().strftime('%d.%m.%Y'):
-                add_diaries(session, history_number=int(history_number), service_id=5)
+            # """Добавляет протокол операции если стоит в плане операции"""
+            # patient_pk = get_patient_pk(session, str(history_number))
+            # if is_surgery_planned(session, patient_pk).get('data')[0].get('date') == datetime.today().strftime('%d.%m.%Y'):
+            #     add_diaries(session, history_number=int(history_number), service_id=5)
 
-            """Добавляет диагностический эпикриз если его нет"""
-            all_records = get_all_records(session, history_number=int(history_number))
+            # """Добавляет диагностический эпикриз если его нет"""
+            # all_records = get_all_records(session, history_number=int(history_number))
+            #
+            # title_records = {}
+            #
+            # for item in all_records.get('data'):
+            #     title_records[item.get('pk')] = item.get('researches')[0]
+            #
+            # diaries = []
+            #
+            # if 'Диагностический эпикриз' not in title_records.values():
+            #     for key in title_records:
+            #         if title_records.get(key) == 'Осмотр':
+            #             diaries.append(key)
 
-            title_records = {}
-
-            for item in all_records.get('data'):
-                title_records[item.get('pk')] = item.get('researches')[0]
-
-            diaries = []
-
-            if 'Диагностический эпикриз' not in title_records.values():
-                for key in title_records:
-                    if title_records.get(key) == 'Осмотр':
-                        diaries.append(key)
-
-            title_examination = []
-            for number in diaries:
-                title_examination.append(get_record_details(session, number))
-
-            if 'лечащим врачом совместно с заведующим отделением' in title_examination:
-                add_diaries(session, service_id=20, history_number=int(history_number))
+            # title_examination = []
+            # for number in diaries:
+            #     title_examination.append(get_record_details(session, number))
+            #
+            # if 'лечащим врачом совместно с заведующим отделением' in title_examination:
+            #     add_diaries(session, service_id=20, history_number=int(history_number))
         except IndexError:
             pass
         except Exception as e:

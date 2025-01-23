@@ -91,7 +91,7 @@ def search_patient(connect, name: str, surname: str, patronymic: str, birthday: 
 
     response_search = connect.post('https://ecp38.is-mis.ru/', params=params_search, headers=headers_search,
                                    data=data_search)
-    return response_search.json()
+    return response_search.json().get('data')
 
 
 def get_evn_number(connect):
@@ -194,13 +194,13 @@ def save_EVN(
         ('ignorePersonAgeByMedSpecCheck', '0'),
         ('checkMoreThanOneEvnPSToEvnDirection', '1'),
         ('accessType', ''),
-        ('EvnSection_IsPaid', ''),
-        ('EvnPS_IndexRep', ''),
-        ('EvnPS_IndexRepInReg', ''),
+        ('EvnSection_IsPaid', '1'),  # ????
+        ('EvnPS_IndexRep', '0'),  # ????
+        ('EvnPS_IndexRepInReg', '1'),  # ????
         ('Lpu_id', '10379'),  # !
-        ('EvnPS_id', '0'),
-        ('EvnSectionPriem_id', '0'),
-        ('EvnPS_IsTransit', '0'),
+        ('EvnPS_id', ''),
+        ('EvnSectionPriem_id', '380101387960080'),  # ????
+        ('EvnPS_IsTransit', '1'),  # ????
         ('ChildLpuSection_id', '380101000015688'),  # !
         ('EvnPS_IsPrehospAcceptRefuse', ''),
         ('EvnPS_PrehospAcceptRefuseDT', ''),
@@ -210,7 +210,7 @@ def save_EVN(
         ('DirType_id', ''),
         ('EvnDirectionExt_id', '0'),
         ('EvnQueue_id', '0'),
-        ('PrehospStatus_id', '0'),
+        ('PrehospStatus_id', '1'),  # характер заболевания: 1 - острое, 2 или 3 - хроническое (ранее или впервые)
         ('Person_id', patient_id),
         ('PersonEvn_id', patient_person_evn_id),
         ('Server_id', patient_server_id),
@@ -237,7 +237,7 @@ def save_EVN(
         ('CmpCallCard_id', ''),
         ('Diag_did', ''),
         ('DiagValidityType_id', ''),
-        ('DiagSetPhase_did', ''),
+        ('DiagSetPhase_did', '4'),
         ('EvnPS_PhaseDescr_did', ''),
         ('PrehospTraumaScale_Value', ''),
         ('ResultECG', ''),
@@ -281,7 +281,7 @@ def save_EVN(
         ('EvnPS_CmpTltTime', ''),
         ('ThrombolysisBSMP_58', ''),
         ('EvnPS_IsActive', '1'),
-        ('DeseaseType_id', ''),
+        ('DeseaseType_id', '3'),
         ('TumorStage_id', ''),
         ('Diag_spid', ''),
         ('EvnPS_BiopsyDate', ''),
@@ -328,7 +328,7 @@ def save_EVN(
         ('LeaveType_fedid', ''),
         ('ResultDeseaseType_fedid', ''),
         ('EvnPS_PatientRefuse', '1'),
-        ('DiagSetPhase_aid', ''),
+        ('DiagSetPhase_aid', '2'),
         ('EvnPS_IsWaif', '1'),
         ('EvnCostPrint_setDT', ''),
         ('EvnCostPrint_Number', ''),
@@ -504,7 +504,7 @@ def save_data(
         ('Diag_cid', ''),
         ('DeseaseBegTimeType_id', ''),
         ('YesNo_148', ''),
-        ('DeseaseType_id', ''),
+        ('DeseaseType_id', '3'),  # Характер заболевания 3 - острое
         ('DiseaseCourseType_149', ''),
         ('DiseaseCourseType_150', ''),
         ('DiseaseCourseType_151', ''),

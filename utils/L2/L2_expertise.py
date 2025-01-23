@@ -1,685 +1,200 @@
-from datetime import datetime
 from pprint import pprint
+from datetime import datetime
 
-import requests
-
-from parse_l2 import authorization_l2
-from settings import login_l2, password_l2
-
-
-def get_extract_number_by_number_history(connect, history_number: int):
-    """Получает номер выписного эпикриза по номеру истории"""
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Content-Type': 'application/json',
-        'DNT': '1',
-        'Origin': 'http://192.168.10.161',
-        'Proxy-Connection': 'keep-alive',
-        'Referer': 'http://192.168.10.161/ui/stationar',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    }
-
-    json_data = {
-        'direction': history_number,  # номер истории (из таблицы)
-        'r_type': 'extracts',
-        'every': False,
-    }
-
-    response = connect.post(
-        'http://192.168.10.161/api/stationar/directions-by-key',
-        headers=headers,
-        json=json_data,
-        verify=False,
-    ).json()
-    return response.get('data')[0].get('pk')
+from openpyxl.reader.excel import load_workbook
+from requests import Session
 
 
-def create_expertise(connect, extract_number: int):
-    """Создаёт лист экспертной оценки"""
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Content-Type': 'application/json',
-        'DNT': '1',
-        'Origin': 'http://192.168.10.161',
-        'Proxy-Connection': 'keep-alive',
-        'Referer': 'http://192.168.10.161/ui/stationar',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    }
+class History:
 
-    json_data = {
-        'pk': extract_number,  # номер выписного эпикриза, не истории
-    }
+    def __init__(self, connection: Session, history_number: int):
+        self.connection = connection
+        self.history_number = history_number
 
-    response = connect.post(
-        'http://192.168.10.161/api/directions/expertise-create',
-        headers=headers,
-        json=json_data,
-        verify=False,
-    ).json()
+        try:
+            json_data = {
+                'direction': history_number,
+                'r_type': 'all',
+                'every': False,
+            }
 
-    return response.get('pk')
+            response = self.connection.post(
+                'http://192.168.10.161/api/stationar/directions-by-key',
+                json=json_data,
+                verify=False
+            )
+            data = response.json().get('data')
+            self._examination_numbers = data
 
+        except Exception as e:
+            print(f'{e}: ошибка получения номера первичного осмотра при инициализации объекта')
+            self.first_examination_number = None
 
-def get_info_expertise(connect, exper_number: int):
+    def _get_first_examination_data(self):
+        for record in self._examination_numbers:
+            examination_title = record.get('researches')
+            if examination_title == ['Первичный осмотр-травматология (при поступлении)']:
+                first_examination_number = record.get('pk')
+                json_data = {
+                    'pk': first_examination_number,
+                    'force': True,
+                }
 
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Content-Type': 'application/json',
-        'DNT': '1',
-        'Origin': 'http://192.168.10.161',
-        'Proxy-Connection': 'keep-alive',
-        'Referer': 'http://192.168.10.161/ui/results/descriptive?embedded=1&embeddedFull=1',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    }
+                examination_data: dict = self.connection.post(
+                    'http://192.168.10.161/api/directions/paraclinic_form',
+                    json=json_data,
+                    verify=False
+                ).json()
 
-    json_data = {
-        'pk': exper_number,
-        'searchMode': 'direction',
-        'withoutIssledovaniye': None,
-        'year': 2024,
-    }
+                return examination_data
 
-    response = connect.post(
-        'http://192.168.10.161/api/directions/paraclinic_form',
-        headers=headers,
-        json=json_data,
-        verify=False,
-    ).json()
-    return {
-        'pk_third': response.get('researches')[0].get('pk'),
-        'date': response.get('researches')[0].get('examination_date')
-    }
+    def check_first_examination(self):
+        examination_data = self._get_first_examination_data()
 
+        """Проверка даты и времени поступления и первичного осмотра"""
+        date_hospitalization = examination_data.get('researches')[0].get('research').get('groups')[0].get('fields')
+        dates = {}
+        for field in date_hospitalization:
+            dates[field.get('title')] = field.get('value')
 
-def save_expertise(connect, pk_third: int, pk_second: int, examination_date: str):
+        date_time_receipt = datetime.strptime(
+            f'{dates.get("Дата поступления")} {dates.get("Время поступления")}',
+            '%Y-%m-%d %H:%M'
+        )
+        date_time_inspection = datetime.strptime(
+            f'{dates.get("Дата осмотра")} {dates.get("Время осмотра")}',
+            '%Y-%m-%d %H:%M'
+        )
+        time_delta = (date_time_inspection - date_time_receipt).total_seconds() / 60
+        if time_delta <= 120:
+            print('Диагноз при поступлении установлен в течение 2х часов')
+            answer_1 = '+'
+        else:
+            print('Внимание!!! Диагноз установлен позже 2х часов')
+            answer_1 = '-'
 
-    headers = {
-        'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Content-Type': 'application/json',
-        'DNT': '1',
-        'Origin': 'http://192.168.10.161',
-        'Proxy-Connection': 'keep-alive',
-        'Referer': 'http://192.168.10.161/ui/results/descriptive?embedded=1&embeddedFull=1',
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-    }
+        """Проверка времени назначения обезболивания при поступлении"""
+        analgesics = ('Ибупрофен', 'Кетопрофен', 'Метамизол натрия', 'Парацетамол', 'Нимесулид')
+        answer_2 = None
+        complaints = examination_data.get('researches')[0].get('research').get('groups')[1].get('fields')[0].get(
+            'value')
 
-    json_data = {
-        'data': {
-            'pk': pk_third,
-            'amd': 'not_need',
-            'amd_number': None,
-            'direction_pk': pk_second,
-            'research': {
-                'pk': 1151,
-                'title': 'Лист экспертной оценки II-III уровня',
-                'version': int(f'{pk_third}0151'),
-                'is_paraclinic': False,
-                'is_doc_refferal': False,
-                'is_gistology': False,
-                'is_microbiology': False,
-                'is_treatment': False,
-                'is_stom': False,
-                'isAux': False,
-                'is_monitoring': False,
-                'wide_headers': True,
-                'comment': '',
-                'groups': [
-                    {
-                        'pk': 3257,
-                        'order': 1,
-                        'title': 'Оценка качества оформления медицинской документации',
-                        'show_title': True,
-                        'hide': False,
-                        'display_hidden': False,
-                        'fields': [
-                            {
-                                'pk': 17942,
-                                'order': 1,
-                                'lines': 1,
-                                'title': 'Уровень экспертизы',
-                                'hide': False,
-                                'values_to_input': [
-                                    '- Не выбрано',
-                                    'второй',
-                                    'третий',
-                                ],
-                                'value': 'второй',
-                                'field_type': 10,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': True,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17870,
-                                'order': 4,
-                                'lines': 1,
-                                'title': 'Полное и корректное заполнение титульного листа ИБ (группа крови, непереносимость лекарств, клинический диагноз, выполненные операции, исход заболевания, трудоспособность)',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17886,
-                                'order': 5,
-                                'lines': 3,
-                                'title': 'Наличие правильно оформленных дневников (адекватное отображение состояния пациента, интерпретация результатов исследования, обоснование назначений), в т.ч. наличие дат и подписей',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17871,
-                                'order': 6,
-                                'lines': 3,
-                                'title': 'Наличие правильно оформленных эпикризов (этапных, предоперационных, выписного), протоколов заседаний ВК, предоперационных концепций, протокол операции, в т.ч. наличие дат и подписей',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17872,
-                                'order': 7,
-                                'lines': 1,
-                                'title': 'Наличие сопутствующего диагноза, диагностических и лечебных назначений после проведенных консультаций смежных специалистов. ',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17873,
-                                'order': 8,
-                                'lines': 3,
-                                'title': 'Наличие полностью заполненного информированного добровольного согласия, отказа от лечения',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17874,
-                                'order': 9,
-                                'lines': 3,
-                                'title': 'Отсутствие признаков искажения сведений, представленных в медицинской документации (дописки, исправления, "вклейки", полное переоформление с искажением сведений о проведенных диагностических и лечебных мероприятий, клинической картине заболевания; расхождение сведений об оказании медицинской помощи в различных разделах медицинской документации)',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17875,
-                                'order': 10,
-                                'lines': 1,
-                                'title': 'Наличие в карте стационарного больного протокола врачебной комиссии в случаях назначения застрахованному лицу лекарственного препарата, не входящего в перечень жизненно необходимых и важнейших лекарственных препаратов.',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17876,
-                                'order': 11,
-                                'lines': 1,
-                                'title': 'Комментарии при наличии одного отрицательного ответа ',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': '',
-                                'field_type': 0,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                        ],
-                        'visibility': '',
-                        'fieldsInline': False,
-                    },
-                    {
-                        'pk': 3258,
-                        'order': 2,
-                        'title': 'Оценка качества медицинской помощи',
-                        'show_title': True,
-                        'hide': False,
-                        'display_hidden': False,
-                        'fields': [
-                            {
-                                'pk': 17877,
-                                'order': 1,
-                                'lines': 1,
-                                'title': 'Обследование соответствует стандартам, порядкам, национальным клиническим рекомендациям РФ  ',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '0',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17878,
-                                'order': 2,
-                                'lines': 3,
-                                'title': 'Лечение соответствует стандартам, порядкам, национальным клиническим рекомендациям РФ',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '0',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17879,
-                                'order': 3,
-                                'lines': 3,
-                                'title': 'Отсутствие осложнений, связанных с медицинским вмешательством/ оказанием медицинской помощи',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '0',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17880,
-                                'order': 4,
-                                'lines': 3,
-                                'title': 'Результат достигнут (выздоровление, улучшение, без изменений) по основному заболеванию',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '0',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17881,
-                                'order': 5,
-                                'lines': 1,
-                                'title': 'Комментарии при наличии одного отрицательного ответа ',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': '',
-                                'field_type': 0,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17882,
-                                'order': 6,
-                                'lines': 1,
-                                'title': 'Отсутствие замечания по ведению истории болезни, не относящиеся к лечащему врачу (врач-консультант, заключения инструментальных/лабораторных исследований и др)',
-                                'hide': False,
-                                'values_to_input': [
-                                    '+',
-                                    '-',
-                                ],
-                                'value': '+',
-                                'field_type': 12,
-                                'can_edit': False,
-                                'default_value': '0',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                        ],
-                        'visibility': '',
-                        'fieldsInline': False,
-                    },
-                    {
-                        'pk': 3259,
-                        'order': 3,
-                        'title': '',
-                        'show_title': True,
-                        'hide': False,
-                        'display_hidden': False,
-                        'fields': [
-                            {
-                                'pk': 17883,
-                                'order': 1,
-                                'lines': 1,
-                                'title': 'Комментарии при наличии отрицательного ответа',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': '',
-                                'field_type': 0,
-                                'can_edit': False,
-                                'default_value': '',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17884,
-                                'order': 2,
-                                'lines': 1,
-                                'title': 'Общее количество баллов',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': 12,
-                                'field_type': 3,
-                                'can_edit': False,
-                                'default_value': '("{17870}" === "+" && "{17871}" === "+" && "{17872}" === "+" && "{17873}" === "+" && "{17874}" === "+" && "{17875}" === "+" && "{17886}" === "+" ? 1 : 0) + ("{17877}" === "+" ? 2 : 0) + ("{17878}" === "+" ? 2 : 0) + ("{17879}" === "+" ? 5 : 0) + ("{17880}" === "+" ? 1 : 0) + ("{17882}" === "+" ? 1 : 0)',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17885,
-                                'order': 3,
-                                'lines': 1,
-                                'title': 'Интерпретация баллов',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': 'Замечаний нет',
-                                'field_type': 3,
-                                'can_edit': False,
-                                'default_value': '{17884} >= 12 ? "Замечаний нет" : {17884} >= 10 && {17884} <= 11 ? "Несущественные замечания" : {17884} >= 8 && {17884} <= 9 ? "Существенные (создан риск для больного)" :  {17884} >= 6 && {17884} <= 7 ? "Серьезные (возникли осложнения)" : "Грубые, недопустимые"',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17888,
-                                'order': 5,
-                                'lines': 3,
-                                'title': 'Наличие замечаний',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': 'Нет',
-                                'field_type': 3,
-                                'can_edit': False,
-                                'default_value': '{17884} < 12 ? "Да" : "Нет"',
-                                'visibility': '',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': False,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                        ],
-                        'visibility': '',
-                        'fieldsInline': False,
-                    },
-                ],
-                'can_transfer': False,
-                'is_extract': False,
-                'transfer_direction': None,
-                'transfer_direction_iss': [],
-                'r_type': 'None',
-                'show_more_services': True,
-                'enabled_add_files': False,
-                'is_need_send_egisz': False,
-            },
-            'pacs': None,
-            'examination_date': examination_date,  # YYYY-mm-dd
-            'templates': [
-                {
-                    'pk': 2617,
-                    'title': 'По умолчанию',
-                },
-            ],
-            'saved': True,
-            'confirmed': True,
-            'confirmed_at': int(datetime.now().timestamp() * 1000),
-            'allow_reset_confirm': False,
-            'more': [],
-            'sub_directions': [],
-            'recipe': [],
-            'lab_comment': '',
-            'forbidden_edit': True,
-            'maybe_onco': False,
-            'work_by': None,
-            'tube': None,
-            'procedure_list': [],
-            'is_form': False,
-            'children_directions': [],
-            'parentDirection': {
-                'pk': pk_second,
-                'service': 'Выписка -тр',
-                'is_hospital': False,
-            },
-            'whoSaved': None,
-            'whoConfirmed': None,
-            'whoExecuted': None,
-            'countFiles': 0,
-            'direction': {
-                'pk': pk_second,
-                'date': '.'.join(examination_date.split('-')[::-1]),
-                'all_confirmed': False,
-                'diagnos': '',
-                'fin_source': 'ОМС',
-                'fin_source_id': 16,
-                'priceCategory': '',
-                'priceCategoryId': '',
-                'additionalNumber': '',
-                'additionalNumberYear': None,
-                'timeGistologyReceive': None,
-                'coExecutor': None,
-                'tube': None,
-                'amd': 'not_need',
-                'amd_number': None,
-                'hospitalTFOMSCode': '380017',
-            },
-            'coExecutor': None,
-        },
-        'with_confirm': True,
-        'visibility_state': {
-            'groups': {
-                '3257': True,
-                '3258': True,
-                '3259': True,
-            },
-            'fields': {
-                '17870': True,
-                '17871': True,
-                '17872': True,
-                '17873': True,
-                '17874': True,
-                '17875': True,
-                '17876': True,
-                '17877': True,
-                '17878': True,
-                '17879': True,
-                '17880': True,
-                '17881': True,
-                '17882': True,
-                '17883': True,
-                '17884': True,
-                '17885': True,
-                '17886': True,
-                '17888': True,
-                '17942': True,
-            },
-        },
-    }
+        prescribed_medications = examination_data.get('researches')[0].get('procedure_list')
 
-    response = connect.post(
-        'http://192.168.10.161/api/directions/paraclinic_result',
-        headers=headers,
-        json=json_data,
-        verify=False,
-    ).json()
-    return response
+        if 'боль' in complaints or 'боли' in complaints:
+            for drug in prescribed_medications:
+                drug_title: str = drug.get('drug').split(' ')[0]
 
+                if drug_title in analgesics:
+                    date_start = drug.get('dateStart')
+                    time_start = drug.get('timesSelected')
+                    for time in time_start:
+                        datetime_start = datetime.strptime(f'{date_start} {time}', '%Y-%m-%d %H:%M')
+                        time_delta = (datetime_start - date_time_receipt).total_seconds() / 60
+                        if 0 < time_delta <= 60:
+                            print('Обезболивание назначено вовремя')
+                            answer_2 = 3
+                        elif time_delta <= 0:
+                            print('Проверить время назначения обезболивания')
+                            answer_2 = 1
+                        else:
+                            print('Обезболивание назначено позже')
+                            answer_2 = 2
 
-session = requests.Session()
+                else:
+                    print('Обезболивание не назначено')
+                    answer_2 = 0
+        return answer_1, answer_2
 
-authorization_l2(session, login_l2, password_l2)
+    def _get_diaries_data(self):
+        diaries_data = []
+        for record in self._examination_numbers:
+            if record.get('researches') == ['Осмотр']:
+                inspection_number = record.get('pk')
+                json_data = {
+                    'pk': inspection_number,
+                    'force': True,
+                }
 
-first = get_extract_number_by_number_history(session, 2926650)
-print('Номер выписки: ', first)
+                examination_data: dict = self.connection.post(
+                    'http://192.168.10.161/api/directions/paraclinic_form',
+                    json=json_data,
+                    verify=False
+                ).json()
+                examination_date = examination_data.get('researches')[0].get('research').get('groups')[1].get('fields')[0].get('value')
+                examination_weekday = examination_data.get('researches')[0].get('research').get('groups')[1].get('fields')[1].get('value')
+                examination_type = examination_data.get('researches')[0].get('research').get('groups')[0].get('fields')[0].get('value')
+                diaries_data.append({
+                    'дата осмотра': examination_date,
+                    'день недели': examination_weekday,
+                    'тип осмотра': examination_type,
+                })
+        return diaries_data
 
-second = create_expertise(session, first)
-print(second)
+    def check_inspection_manager(self):
+        """Проверка наличия осмотра заведующим в первые 48 часов (рабочие дни, без учета праздников)"""
+        for examination_data in self._examination_numbers:
+            if examination_data.get('researches') == ['Первичный осмотр-травматология (при поступлении)']:
+                first_examination_date = examination_data.get('date_create').split(' - ')[0]
+                first_examination_weekday = examination_data.get('date_create').split(' - ')[1]
 
-third = get_info_expertise(session, second)
-print(third)
+                for item in self._get_diaries_data()[::-1]:
+                    if item.get('тип осмотра') in ['лечащим врачом совместно с заведующим отделением',
+                                                   'заведующим отделением']:
+                        date = '.'.join(item.get('дата осмотра').split('-')[::-1])
+                        examination_date_datetime = datetime.strptime(date, '%d.%m.%Y')
+                        first_examination_date_datetime = datetime.strptime(first_examination_date, '%d.%m.%Y')
+                        time_delta = (examination_date_datetime - first_examination_date_datetime).days
+                        print('Не учитываются праздничные дни, только выходные дни недели')
+                        if time_delta < 3:
+                            print('Осмотр с заведующим отделением проведен в течение 2х дней')
+                            return True
+                        elif 5 > time_delta >= 3 and first_examination_weekday == 'ПТ':
+                            print('Пациент поступил в пятницу и осмотр с заведующим проведен в течение 2х рабочих дней')
+                            return True
+                        elif 4 > time_delta >= 3 and first_examination_weekday == 'СБ':
+                            print('Пациент поступил в субботу и осмотр с заведующим проведен в течение 2х рабочих дней')
+                            return True
+                        else:
+                            print('Осмотр с заведующим проведен позже 2х рабочих дней')
+                        return False
 
-finish = save_expertise(session, second, third.get('pk_third'), third.get('date'))
+    def write_in_table(self):
+        """Записывает данные проверки в таблицу"""
+        first_check = self.check_first_examination()
+        painkiller_time = ''
+        if first_check[0] == 0:
+            painkiller = '-'
+        else:
+            painkiller = '+'
+            if first_check[1] == 1 or first_check[1] == 2:
+                painkiller_time = '-'
+            elif first_check[1] == 3:
+                painkiller_time = '+'
 
-pprint(finish)
+        examination_check = self.check_inspection_manager()
+        if examination_check:
+            chief_examination = '+'
+        else:
+            chief_examination = '-'
+
+        # print(first_check)
+        # if first_check[0]:
+        #     fill_1 = PatternFill(start_color='BFE5A8', end_color='BFE5A8', fill_type='solid')
+        # else:
+        #     fill_1 = PatternFill(start_color='E6AC89', end_color='E6AC89', fill_type='solid')
+
+        workbook = load_workbook('/Users/aleksejdegtarev/Desktop/Экспертиза (скрипт).xlsx')
+        worksheet = workbook.worksheets[0]
+        worksheet.append(
+            {
+                1: f'{self.history_number}',
+                2: f'{self._get_first_examination_data().get("patient").get("fio")}',
+                3: first_check[0],
+                4: painkiller,
+                5: painkiller_time,
+                6: chief_examination
+            }
+        )
+        workbook.save('/Users/aleksejdegtarev/Desktop/Экспертиза (скрипт).xlsx')
+        return worksheet

@@ -5,6 +5,7 @@ import gspread
 import requests
 from bs4 import BeautifulSoup
 
+from utils.L2.L2_expertise import History
 from utils.settings import GOOGLE_TABLE_KEY
 
 
@@ -48,6 +49,9 @@ def authorization_l2(connect, login, password):
 
 def add_diaries(connect, history_number: int, service_id: int):
     """Создаёт новый дневник"""
+    expertise_case = History(connect, history_number)
+    expertise_case.write_in_table()
+
     headers = {
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -60,7 +64,7 @@ def add_diaries(connect, history_number: int, service_id: int):
     }
 
     json_data = {
-        'service': service_id,  # 2 - дневник, 5 - протокол операции, 20 - диагностический эпикриз
+        'service': service_id,  # 2 - дневник, 5 - протокол операции, 20 - диагностический эпикриз, 479 - предоперационный эпикриз
         'main_direction': history_number,
     }
 
@@ -201,9 +205,11 @@ def save_results(connect, pk, pk_2, local_status, history_number, what_inspectio
                                 'hide': False,
                                 'values_to_input': [
                                     'лечащим врачом',
-                                    'лечащим врачом совместно с заведующим отделением',
                                     'дежурным травматологом-ортопедом',
-                                    'оперирующим врачом (Предоперационный эпикриз)',
+                                    'врачом-специалистом',
+                                    'заведующим отделением',
+                                    'лечащим врачом совместно с врачом-специалистом',
+                                    'лечащим врачом совместно с заведующим отделением',
                                 ],
                                 'value': what_inspection,
                                 'field_type': 12,
@@ -299,44 +305,6 @@ def save_results(connect, pk, pk_2, local_status, history_number, what_inspectio
                         'display_hidden': False,
                         'fields': [
                             {
-                                'pk': 17793,
-                                'order': 1,
-                                'lines': 1,
-                                'title': 'Фамилия, имя, отчество',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': '',
-                                'field_type': 14,
-                                'can_edit': False,
-                                'default_value': '%patient_fio',
-                                'visibility': '{16375} == "оперирующим врачом (Предоперационный эпикриз)"',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': True,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
-                                'pk': 17794,
-                                'order': 2,
-                                'lines': 1,
-                                'title': 'Дата рождения',
-                                'hide': False,
-                                'values_to_input': [],
-                                'value': '',
-                                'field_type': 14,
-                                'can_edit': False,
-                                'default_value': '%patient_born',
-                                'visibility': '{16375} == "оперирующим врачом (Предоперационный эпикриз)"',
-                                'required': False,
-                                'helper': '',
-                                'controlParam': '',
-                                'not_edit': True,
-                                'operator_enter_param': False,
-                                'deniedGroup': '',
-                            },
-                            {
                                 'pk': 17786,
                                 'order': 3,
                                 'lines': 1,
@@ -346,7 +314,7 @@ def save_results(connect, pk, pk_2, local_status, history_number, what_inspectio
                                 'value': '',
                                 'field_type': 14,
                                 'can_edit': False,
-                                'default_value': '1818|12320',
+                                'default_value': '1818',
                                 'visibility': '',
                                 'required': False,
                                 'helper': '',
@@ -366,7 +334,7 @@ def save_results(connect, pk, pk_2, local_status, history_number, what_inspectio
                                 'field_type': 14,
                                 'can_edit': False,
                                 'default_value': '1819',
-                                'visibility': '{16375} == "оперирующим врачом (Предоперационный эпикриз)"',
+                                'visibility': '',
                                 'required': False,
                                 'helper': '',
                                 'controlParam': '',
@@ -381,13 +349,13 @@ def save_results(connect, pk, pk_2, local_status, history_number, what_inspectio
                                 'title': 'День госпитализации',
                                 'hide': False,
                                 'values_to_input': [],
-                                'value': '',
+                                'value': 1,
                                 'field_type': 3,
                                 'can_edit': False,
                                 'default_value': 'Math.ceil(Math.abs(((new Date("{17786}".split(\'.\').reverse().join(\'-\'))).getTime() - (new Date("{2283}")).getTime()) / (1000 * 3600 * 24)) + 1)',
-                                'visibility': '{16375} != "оперирующим врачом (Предоперационный эпикриз)"',
+                                'visibility': '',
                                 'required': False,
-                                'helper': '',
+                                'helper': 'Math.ceil(Math.abs(((new Date("{17786}".split(\'.\').reverse().join(\'-\'))).getTime() - (new Date("{2283}")).getTime()) / (1000 * 3600 * 24)) + 1)',
                                 'controlParam': '',
                                 'not_edit': False,
                                 'operator_enter_param': False,
