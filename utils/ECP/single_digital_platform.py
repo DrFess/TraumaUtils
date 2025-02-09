@@ -1210,7 +1210,7 @@ def save_implant_type_link(connect, evn_usluga_oper_id: str, implant_id: str, im
         'EvnUslugaImplantTypeLink_id': '',
         'EvnUsluga_id': evn_usluga_oper_id,  # EvnUslugaOper_id
         'ImplantType_id': implant_id,  # из implant_info.json
-        'EvnUslugaImplantTypeLink_SerNum': '',  # серийный номер
+        'EvnUslugaImplantTypeLink_SerNum': '00000',  # серийный номер
         'ImplantType_Name': implant_name,   # из implant_info.json, можно не указывать
     }
 
